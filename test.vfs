@@ -1,0 +1,5 @@
+ls -l
+cd /home/user
+ls
+cd /home
+cd /
