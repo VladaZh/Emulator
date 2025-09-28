@@ -5,6 +5,7 @@ import socket
 import csv
 import base64
 import sys
+from datetime import datetime
 
 
 class VFSApp:
@@ -144,7 +145,13 @@ class VFSApp:
                                             "readme.txt": {
                                                 "type": "file",
                                                 "size": 1024,
-                                                "content": "Welcome to VFS",
+                                                "content": "Welcome to VFS\nLine 1\nLine 2\nLine 3\nLine 4\nLine 5\nLine 6\nLine 7\nLine 8\nLine 9\nLine 10",
+                                                "perms": "644"
+                                            },
+                                            "notes.txt": {
+                                                "type": "file",
+                                                "size": 512,
+                                                "content": "Important notes:\nNote 1\nNote 2\nNote 3\nNote 4\nNote 5",
                                                 "perms": "644"
                                             }
                                         },
@@ -167,7 +174,7 @@ class VFSApp:
                             "config.txt": {
                                 "type": "file",
                                 "size": 512,
-                                "content": "key=value",
+                                "content": "key=value\nserver=localhost\nport=8080\ntimeout=30",
                                 "perms": "644"
                             }
                         },
@@ -176,7 +183,7 @@ class VFSApp:
                     "readme.txt": {
                         "type": "file",
                         "size": 2048,
-                        "content": "VFS Emulator",
+                        "content": "VFS Emulator\nThis is a virtual file system\nYou can use commands like ls, cd, head, date",
                         "perms": "644"
                     }
                 },
@@ -206,16 +213,20 @@ class VFSApp:
                 return self.list_directory(args)
             elif command == "cd":
                 return self.change_directory(args)
+            elif command == "head":
+                return self.head_file(args)
+            elif command == "date":
+                return self.show_date(args)
             else:
                 self.print_output(f"Unknown command: {command}")
-                return False
+                return True  # Продолжаем выполнение даже при неизвестной команде
 
         except ValueError as e:
             self.print_output(f"Syntax error: {e}")
-            return False
+            return True
         except Exception as e:
             self.print_output(f"Command execution error: {e}")
-            return False
+            return True
 
     def parse_command(self, command_line):
         tokens = []
@@ -264,7 +275,9 @@ class VFSApp:
                     self.print_output(f"[Script:{line_num}] > {line}")
 
                     success = self.execute_command(line)
-                    if not success:
+                    if not success and line == "exit":
+                        return True  # exit - нормальное завершение
+                    elif not success:
                         self.print_output(f"Script stopped at line {line_num} due to error")
                         return False
 
@@ -349,6 +362,71 @@ class VFSApp:
 
         except Exception as e:
             self.print_output(f"cd error: {e}")
+            return False
+
+    def head_file(self, args):
+        """Реализация команды head - вывод первых строк файла"""
+        try:
+            # Парсим аргументы
+            lines_to_show = 10  # значение по умолчанию
+            file_path = None
+
+            i = 0
+            while i < len(args):
+                if args[i] == "-n" and i + 1 < len(args):
+                    try:
+                        lines_to_show = int(args[i + 1])
+                        i += 2
+                    except ValueError:
+                        self.print_output(f"Error: invalid number of lines: {args[i + 1]}")
+                        return False
+                elif not args[i].startswith("-"):
+                    file_path = args[i]
+                    i += 1
+                else:
+                    self.print_output(f"Error: unknown option: {args[i]}")
+                    return False
+
+            if not file_path:
+                self.print_output("Error: specify file path")
+                return False
+
+            # Получаем полный путь к файлу
+            if not file_path.startswith('/'):
+                file_path = os.path.join(self.current_dir, file_path).replace('\\', '/')
+
+            # Находим файл в VFS
+            file_item = self.get_directory_by_path(file_path)
+            if not file_item:
+                self.print_output(f"Error: file {file_path} not found")
+                return False
+            elif file_item["type"] != "file":
+                self.print_output(f"Error: {file_path} is not a file")
+                return False
+
+            # Получаем содержимое файла и выводим первые строки
+            content = file_item.get("content", "")
+            lines = content.split('\n')
+
+            for i in range(min(lines_to_show, len(lines))):
+                self.print_output(lines[i])
+
+            return True
+
+        except Exception as e:
+            self.print_output(f"head error: {e}")
+            return False
+
+    def show_date(self, args):
+        """Реализация команды date - вывод текущей даты и времени"""
+        try:
+            # Простая реализация без поддержки форматов
+            current_time = datetime.now()
+            formatted_time = current_time.strftime("%a %b %d %H:%M:%S %Z %Y")
+            self.print_output(formatted_time)
+            return True
+        except Exception as e:
+            self.print_output(f"date error: {e}")
             return False
 
     def get_directory_by_path(self, path):
