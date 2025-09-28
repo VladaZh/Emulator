@@ -16,8 +16,12 @@ class VFSApp:
 
         if script_path:
             self.print_output(f"Script to execute: {script_path}")
-            self.run_script()
-            self.print_output("\n=== Script executed, switching to interactive mode ===")
+            script_completed = self.run_script()
+
+            if script_completed:
+                self.print_output("\n=== Script completed successfully, switching to interactive mode ===")
+            else:
+                self.print_output("\n=== Script execution failed, switching to interactive mode ===")
 
         self.run_interactive()
 
@@ -31,25 +35,28 @@ class VFSApp:
 
         try:
             tokens = self.parse_command(command_line)
-            if tokens:
-                command = tokens[0]
-                args = tokens[1:] if len(tokens) > 1 else []
+            if not tokens:
+                return True
 
-                if command == "exit":
-                    return False
-                elif command == "ls":
-                    self.list_directory(args)
-                elif command == "cd":
-                    self.change_directory(args)
-                else:
-                    self.print_output(f"Unknown command: {command}")
+            command = tokens[0]
+            args = tokens[1:] if len(tokens) > 1 else []
+
+            if command == "exit":
+                return False
+            elif command == "ls":
+                return self.list_directory(args)
+            elif command == "cd":
+                return self.change_directory(args)
+            else:
+                self.print_output(f"Unknown command: {command}")
+                return False
 
         except ValueError as e:
             self.print_output(f"Syntax error: {e}")
+            return False
         except Exception as e:
             self.print_output(f"Command execution error: {e}")
-
-        return True
+            return False
 
     def parse_command(self, command_line):
         tokens = []
@@ -85,7 +92,7 @@ class VFSApp:
     def run_script(self):
         if not self.script_path or not os.path.exists(self.script_path):
             self.print_output(f"Error: Script {self.script_path} not found")
-            return
+            return False
 
         self.print_output(f"# Executing script: {self.script_path}")
 
@@ -96,10 +103,17 @@ class VFSApp:
                     if not line or line.startswith('#'):
                         continue
                     self.print_output(f"[Script:{line_num}] > {line}")
-                    self.execute_command(line)
+
+                    success = self.execute_command(line)
+                    if not success:
+                        self.print_output(f"Script stopped at line {line_num} due to error")
+                        return False
+
+            return True
 
         except Exception as e:
             self.print_output(f"Script reading error: {e}")
+            return False
 
     def initialize_vfs(self):
         self.current_vfs = {
@@ -153,7 +167,7 @@ class VFSApp:
             target_dir = self.get_directory_by_path(target_path)
             if not target_dir or target_dir["type"] != "directory":
                 self.print_output(f"Error: {target_path} is not a directory")
-                return
+                return False
 
             items = []
             for name, item in target_dir["content"].items():
@@ -165,19 +179,21 @@ class VFSApp:
                 else:
                     items.append(name)
 
-            # Output all items in one line separated by spaces
             if items:
                 self.print_output(" ".join(items))
             else:
-                self.print_output("")  # Empty line for empty directory
+                self.print_output("")
+
+            return True
 
         except Exception as e:
             self.print_output(f"ls error: {e}")
+            return False
 
     def change_directory(self, args):
         if not args:
             self.print_output("Error: specify path")
-            return
+            return False
 
         path = args[0]
         try:
@@ -186,6 +202,7 @@ class VFSApp:
             elif path == "..":
                 if self.current_dir == "/":
                     self.print_output("Error: already in root directory")
+                    return False
                 else:
                     parts = self.current_dir.rstrip('/').split('/')
                     self.current_dir = '/' + '/'.join(parts[:-1]) if len(parts) > 1 else "/"
@@ -197,13 +214,18 @@ class VFSApp:
                 target = self.get_directory_by_path(new_path)
                 if not target:
                     self.print_output(f"Error: path {new_path} does not exist")
+                    return False
                 elif target["type"] != "directory":
                     self.print_output(f"Error: {new_path} is not a directory")
+                    return False
                 else:
                     self.current_dir = new_path
             self.print_output(f"Current directory: {self.current_dir}")
+            return True
+
         except Exception as e:
             self.print_output(f"cd error: {e}")
+            return False
 
     def get_directory_by_path(self, path):
         if path == "/":
@@ -219,77 +241,7 @@ class VFSApp:
 
         return current
 
-    def path_exists(self, path):
-        if path == "/":
-            return True
-
-        parts = path.strip('/').split('/')
-        current = self.current_vfs.get("/")
-        for part in parts:
-            if part and current and current["type"] == "directory":
-                current = current["content"].get(part)
-            else:
-                return False
-        return current is not None
-
-    def reverse_text(self, args):
-        if not args:
-            self.print_output("Error: specify text to reverse")
-            return
-
-        text = " ".join(args)
-        reversed_text = text[::-1]
-        self.print_output(f"Reversed: {reversed_text}")
-
-    def find_in_vfs(self, args):
-        if not args:
-            self.print_output("Error: specify name to search")
-            return
-
-        search_name = args[0]
-        results = []
-        self._search_recursive("/", self.current_vfs["/"], search_name, results)
-
-        if results:
-            self.print_output(f"Found {len(results)} results:")
-            for result in results:
-                self.print_output(f"  {result}")
-        else:
-            self.print_output("No results found")
-
-    def _search_recursive(self, current_path, current_item, search_name, results):
-        if current_item["type"] == "directory":
-            for name, item in current_item["content"].items():
-                item_path = f"{current_path}/{name}" if current_path != "/" else f"/{name}"
-                if name == search_name:
-                    item_type = "directory" if item["type"] == "directory" else "file"
-                    results.append(f"{item_path} ({item_type})")
-                self._search_recursive(item_path, item, search_name, results)
-
-    def change_permissions(self, args):
-        if len(args) < 2:
-            self.print_output("Error: specify permissions and path")
-            return
-        perms = args[0]
-        target_path = args[1]
-        if not perms.isdigit() or len(perms) != 3 or not all(0 <= int(p) <= 7 for p in perms):
-            self.print_output("Error: permissions must be a three-digit number")
-            return
-        if not target_path.startswith('/'):
-            target_path = os.path.join(self.current_dir, target_path).replace('\\', '/')
-        try:
-            target_item = self.get_directory_by_path(target_path)
-            if not target_item:
-                self.print_output(f"Error: {target_path} does not exist")
-                return
-            target_item["perms"] = perms
-            self.print_output(f"Permissions for {target_path} changed to {perms}")
-
-        except Exception as e:
-            self.print_output(f"chmod error: {e}")
-
     def run_interactive(self):
-        # Get real OS data
         username = getpass.getuser()
         hostname = socket.gethostname()
 
@@ -297,7 +249,6 @@ class VFSApp:
 
         while True:
             try:
-                # Create prompt based on real OS data
                 prompt = f"{username}@{hostname}:{self.current_dir}$ "
                 command = input(prompt).strip()
                 if not self.execute_command(command):
