@@ -8,7 +8,7 @@ import sys
 from datetime import datetime
 
 
-class VFSApp:
+class VFSApp: # запуск в терминале python3 emulator.py
     def __init__(self, vfs_path='./vfs_root', script_path=None, vfs_csv=None):
         self.vfs_path = vfs_path
         self.script_path = script_path
@@ -216,7 +216,11 @@ class VFSApp:
     def print_output(self, text):
         print(text)
 
-    def execute_command(self, command_line):
+    def execute_command(self, command_line, is_script=False):
+        """
+        Выполняет команду
+        is_script: если True, то при ошибке возвращает False для остановки скрипта
+        """
         command_line = command_line.strip()
         if not command_line:
             return True
@@ -232,27 +236,34 @@ class VFSApp:
             if command == "exit":
                 return False
             elif command == "ls":
-                return self.list_directory(args)
+                success = self.list_directory(args)
             elif command == "cd":
-                return self.change_directory(args)
+                success = self.change_directory(args)
             elif command == "head":
-                return self.head_file(args)
+                success = self.head_file(args)
             elif command == "date":
-                return self.show_date(args)
+                success = self.show_date(args)
             elif command == "cp":
-                return self.copy_file(args)
+                success = self.copy_file(args)
             elif command == "rmdir":
-                return self.remove_directory(args)
+                success = self.remove_directory(args)
             else:
                 self.print_output(f"Unknown command: {command}")
-                return True  # Продолжаем выполнение даже при неизвестной команде
+                # В режиме скрипта неизвестная команда - это ошибка
+                return not is_script
+
+            # В режиме скрипта возвращаем False при ошибке для остановки
+            if is_script:
+                return success
+            else:
+                return True  # В интерактивном режиме продолжаем при ошибках
 
         except ValueError as e:
             self.print_output(f"Syntax error: {e}")
-            return True
+            return not is_script
         except Exception as e:
             self.print_output(f"Command execution error: {e}")
-            return True
+            return not is_script
 
     def parse_command(self, command_line):
         tokens = []
@@ -300,7 +311,8 @@ class VFSApp:
                         continue
                     self.print_output(f"[Script:{line_num}] > {line}")
 
-                    success = self.execute_command(line)
+                    # Передаем is_script=True для остановки при ошибках
+                    success = self.execute_command(line, is_script=True)
                     if not success and line == "exit":
                         return True  # exit - нормальное завершение
                     elif not success:
@@ -589,7 +601,7 @@ class VFSApp:
             try:
                 prompt = f"{username}@{hostname}:{self.current_dir}$ "
                 command = input(prompt).strip()
-                if not self.execute_command(command):
+                if not self.execute_command(command, is_script=False):
                     break
             except KeyboardInterrupt:
                 self.print_output("\nShutting down...")
