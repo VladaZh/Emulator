@@ -28,7 +28,7 @@ ls
 cd /
 ls
 
-# Тестируем новые команды head и date
+# Тестируем команды head и date
 date
 head /readme.txt
 head -n 5 /readme.txt
@@ -40,9 +40,67 @@ head -n 3 readme.txt
 head notes.txt
 date
 
-# Тестируем обработку ошибок
-# cd /nonexistent
-# ls invalid/path
-# head /nonexistent_file.txt
-# head /home
+# Тестируем команду cp (копирование файлов)
+cd /home/user/documents
+ls
+cp readme.txt readme_backup.txt
+ls
+cp notes.txt /notes_backup.txt
+cd /
+ls
+head -n 2 notes_backup.txt
+cd /home/user
+cp ../readme.txt copied_readme.txt
+ls
+head -n 2 copied_readme.txt
+cp documents/notes.txt ./notes_copy.txt
+ls
+head -n 2 notes_copy.txt
+
+# Тестируем команду rmdir (удаление директорий)
+cd /home/user
+ls -l
+mkdir test_dir1
+mkdir test_dir2
+ls -l
+rmdir test_dir1
+ls -l
+cd photos
+ls
+cd vacation
+ls
+cd /home/user
+rmdir photos/vacation
+cd photos
+ls
+cd /home/user
+rmdir temp
+ls -l
+
+# Тестируем обработку ошибок для cp и rmdir
+cp nonexistent.txt backup.txt
+cp readme.txt /nonexistent_dir/backup.txt
+cp readme.txt documents/readme.txt
+cp /home/user/documents /backup
+cd /home/user
+rmdir documents
+rmdir nonexistent_dir
+rmdir /home/user/documents/readme.txt
+rmdir /
+
+# Тестируем обработку ошибок для других команд
+cd /nonexistent
+ls invalid/path
+head /nonexistent_file.txt
+head /home
 head -n invalid /readme.txt
+
+# Финальный просмотр структуры
+cd /
+ls -l
+cd home
+ls -l
+cd user
+ls -l
+cd documents
+ls -l

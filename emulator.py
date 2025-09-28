@@ -159,6 +159,17 @@ class VFSApp:
                                     },
                                     "photos": {
                                         "type": "directory",
+                                        "content": {
+                                            "vacation": {
+                                                "type": "directory",
+                                                "content": {},
+                                                "perms": "755"
+                                            }
+                                        },
+                                        "perms": "755"
+                                    },
+                                    "temp": {
+                                        "type": "directory",
                                         "content": {},
                                         "perms": "755"
                                     }
@@ -180,10 +191,21 @@ class VFSApp:
                         },
                         "perms": "755"
                     },
+                    "var": {
+                        "type": "directory",
+                        "content": {
+                            "log": {
+                                "type": "directory",
+                                "content": {},
+                                "perms": "755"
+                            }
+                        },
+                        "perms": "755"
+                    },
                     "readme.txt": {
                         "type": "file",
                         "size": 2048,
-                        "content": "VFS Emulator\nThis is a virtual file system\nYou can use commands like ls, cd, head, date",
+                        "content": "VFS Emulator\nThis is a virtual file system\nYou can use commands like ls, cd, head, date, cp, rmdir",
                         "perms": "644"
                     }
                 },
@@ -217,6 +239,10 @@ class VFSApp:
                 return self.head_file(args)
             elif command == "date":
                 return self.show_date(args)
+            elif command == "cp":
+                return self.copy_file(args)
+            elif command == "rmdir":
+                return self.remove_directory(args)
             else:
                 self.print_output(f"Unknown command: {command}")
                 return True  # Продолжаем выполнение даже при неизвестной команде
@@ -427,6 +453,116 @@ class VFSApp:
             return True
         except Exception as e:
             self.print_output(f"date error: {e}")
+            return False
+
+    def copy_file(self, args):
+        """Реализация команды cp - копирование файлов"""
+        try:
+            if len(args) < 2:
+                self.print_output("Error: cp requires source and destination paths")
+                return False
+
+            source_path = args[0]
+            dest_path = args[1]
+
+            # Получаем полные пути
+            if not source_path.startswith('/'):
+                source_path = os.path.join(self.current_dir, source_path).replace('\\', '/')
+            if not dest_path.startswith('/'):
+                dest_path = os.path.join(self.current_dir, dest_path).replace('\\', '/')
+
+            # Находим исходный файл
+            source_item = self.get_directory_by_path(source_path)
+            if not source_item:
+                self.print_output(f"Error: source file {source_path} not found")
+                return False
+            elif source_item["type"] != "file":
+                self.print_output(f"Error: {source_path} is not a file")
+                return False
+
+            # Определяем директорию назначения и имя нового файла
+            dest_parts = dest_path.strip('/').split('/')
+            dest_dir_path = '/' + '/'.join(dest_parts[:-1]) if len(dest_parts) > 1 else "/"
+            new_filename = dest_parts[-1]
+
+            # Находим директорию назначения
+            dest_dir = self.get_directory_by_path(dest_dir_path)
+            if not dest_dir:
+                self.print_output(f"Error: destination directory {dest_dir_path} not found")
+                return False
+            elif dest_dir["type"] != "directory":
+                self.print_output(f"Error: {dest_dir_path} is not a directory")
+                return False
+
+            # Проверяем, не существует ли уже файл с таким именем
+            if new_filename in dest_dir["content"]:
+                self.print_output(f"Error: file {new_filename} already exists in {dest_dir_path}")
+                return False
+
+            # Копируем файл
+            dest_dir["content"][new_filename] = {
+                "type": "file",
+                "size": source_item["size"],
+                "content": source_item["content"],
+                "perms": source_item["perms"]
+            }
+
+            self.print_output(f"File copied from {source_path} to {dest_path}")
+            return True
+
+        except Exception as e:
+            self.print_output(f"cp error: {e}")
+            return False
+
+    def remove_directory(self, args):
+        """Реализация команды rmdir - удаление пустых директорий"""
+        try:
+            if len(args) < 1:
+                self.print_output("Error: rmdir requires directory path")
+                return False
+
+            dir_path = args[0]
+
+            # Получаем полный путь
+            if not dir_path.startswith('/'):
+                dir_path = os.path.join(self.current_dir, dir_path).replace('\\', '/')
+
+            # Нельзя удалить корневую директорию
+            if dir_path == "/":
+                self.print_output("Error: cannot remove root directory")
+                return False
+
+            # Находим директорию для удаления
+            dir_parts = dir_path.strip('/').split('/')
+            parent_dir_path = '/' + '/'.join(dir_parts[:-1]) if len(dir_parts) > 1 else "/"
+            dir_name = dir_parts[-1]
+
+            parent_dir = self.get_directory_by_path(parent_dir_path)
+            if not parent_dir:
+                self.print_output(f"Error: parent directory {parent_dir_path} not found")
+                return False
+
+            if dir_name not in parent_dir["content"]:
+                self.print_output(f"Error: directory {dir_path} not found")
+                return False
+
+            target_dir = parent_dir["content"][dir_name]
+            if target_dir["type"] != "directory":
+                self.print_output(f"Error: {dir_path} is not a directory")
+                return False
+
+            # Проверяем, что директория пуста
+            if target_dir["content"]:
+                self.print_output(f"Error: directory {dir_path} is not empty")
+                return False
+
+            # Удаляем директорию
+            del parent_dir["content"][dir_name]
+            self.print_output(f"Directory {dir_path} removed")
+            return True
+
+        except Exception as e:
+            self.print_output(f"rmdir error: {e}")
             return False
 
     def get_directory_by_path(self, path):
