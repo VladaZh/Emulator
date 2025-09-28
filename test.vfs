@@ -3,5 +3,30 @@ cd /home/user
 ls
 cd /home
 cd /
+
+ls
+ls -l
+cd home
+ls -l
+cd user
+ls
+cd documents
+ls
+cd /
+ls etc
+cd /
+
+ls -l
+cd home
+ls
+cd user
+ls
+cd documents
+ls -l
+cd ..
+ls
+cd /
+ls
+
 cd /nonexistent
 ls invalid/path
