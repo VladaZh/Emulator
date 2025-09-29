@@ -8,23 +8,26 @@ import sys
 from datetime import datetime
 
 
-class VFSApp: # запуск в терминале python3 emulator.py
+class VFSApp: # Запуск в терминале: python3 emulator.py
     def __init__(self, vfs_path='./vfs_root', script_path=None, vfs_csv=None):
-        self.vfs_path = vfs_path
-        self.script_path = script_path
-        self.vfs_csv = vfs_csv
-        self.current_vfs = {}
-        self.current_dir = "/"
+
+        self.vfs_path = vfs_path # Путь к физическому расположению VFS
+        self.script_path = script_path # Путь к скрипту для выполнения
+        self.vfs_csv = vfs_csv # Путь к CSV файлу с данными VFS
+        self.current_vfs = {}  # Текущая структура VFS в памяти
+        self.current_dir = "/"  # Текущая рабочая директория
 
         # Загружаем VFS из CSV или создаем стандартную
         if not self.load_vfs_from_csv():
             self.initialize_default_vfs()
 
+        # Вывод информации о запуске
         self.print_output(f"VFS Emulator started")
         self.print_output(f"VFS path: {vfs_path}")
         if vfs_csv:
             self.print_output(f"VFS source: {vfs_csv}")
 
+        # Если указан скрипт - выполняем его
         if script_path:
             self.print_output(f"Script to execute: {script_path}")
             script_completed = self.run_script()
@@ -49,11 +52,14 @@ class VFSApp: # запуск в терминале python3 emulator.py
             return False
 
         try:
+            # Инициализируем корневую директорию
             self.current_vfs = {"/": {"type": "directory", "content": {}, "perms": "755"}}
 
+            # Читаем CSV файл
             with open(self.vfs_csv, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
 
+                # Обрабатываем каждую строку CSV
                 for row_num, row in enumerate(reader, 1):
                     if not self.validate_csv_row(row, row_num):
                         continue
@@ -91,6 +97,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
         if path == "/":
             return
 
+        # Разбиваем путь на компоненты
         parts = path.strip('/').split('/')
         current = self.current_vfs["/"]
 
@@ -107,7 +114,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
                 self.print_output(f"Error in row {row_num}: '{part}' is not a directory")
                 return
 
-        # Создаем конечный элемент
+        # Создаем конечный элемент (файл или директорию)
         filename = parts[-1]
         if item_type == 'directory':
             current['content'][filename] = {
@@ -118,6 +125,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
         else:  # file
             size = int(row.get('size', 0))
             content_b64 = row.get('content', '')
+            # Декодируем содержимое из base64
             content = base64.b64decode(content_b64).decode('utf-8') if content_b64 else ""
 
             current['content'][filename] = {
@@ -128,7 +136,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
             }
 
     def initialize_default_vfs(self):
-        """Создание VFS по умолчанию"""
+        """Создание VFS по умолчанию со стандартной структурой"""
         self.current_vfs = {
             "/": {
                 "type": "directory",
@@ -217,15 +225,12 @@ class VFSApp: # запуск в терминале python3 emulator.py
         print(text)
 
     def execute_command(self, command_line, is_script=False):
-        """
-        Выполняет команду
-        is_script: если True, то при ошибке возвращает False для остановки скрипта
-        """
         command_line = command_line.strip()
         if not command_line:
             return True
 
         try:
+            # Парсим команду на части
             tokens = self.parse_command(command_line)
             if not tokens:
                 return True
@@ -233,6 +238,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
             command = tokens[0]
             args = tokens[1:] if len(tokens) > 1 else []
 
+            # Обрабатываем команды
             if command == "exit":
                 return False
             elif command == "ls":
@@ -249,8 +255,8 @@ class VFSApp: # запуск в терминале python3 emulator.py
                 success = self.remove_directory(args)
             else:
                 self.print_output(f"Unknown command: {command}")
-                # В режиме скрипта неизвестная команда - это ошибка
-                return not is_script
+                # выход при неизвестной команде
+                return False
 
             # В режиме скрипта возвращаем False при ошибке для остановки
             if is_script:
@@ -266,6 +272,15 @@ class VFSApp: # запуск в терминале python3 emulator.py
             return not is_script
 
     def parse_command(self, command_line):
+        """
+        Парсит командную строку на токены с поддержкой кавычек
+
+        Args:
+            command_line (str): Строка команды
+
+        Returns:
+            list: Список токенов
+        """
         tokens = []
         current_token = ""
         in_quotes = False
@@ -297,6 +312,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
         return tokens
 
     def run_script(self):
+        # Выполнение скрипта из файла
         if not self.script_path or not os.path.exists(self.script_path):
             self.print_output(f"Error: Script {self.script_path} not found")
             return False
@@ -305,8 +321,10 @@ class VFSApp: # запуск в терминале python3 emulator.py
 
         try:
             with open(self.script_path, 'r', encoding='utf-8') as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
+                # Читаем скрипт построчно
+                for line_num, line in enumerate(f, 1): # нумерация строк с 1
+                    line = line.strip() # удаление лишних пробелов
+                    # Пропускаем пустые строки и комментарии
                     if not line or line.startswith('#'):
                         continue
                     self.print_output(f"[Script:{line_num}] > {line}")
@@ -326,25 +344,31 @@ class VFSApp: # запуск в терминале python3 emulator.py
             return False
 
     def list_directory(self, args):
+        """Реализация команды ls - список файлов и директорий"""
         try:
             show_details = "-l" in args
             path_args = [arg for arg in args if arg != "-l"]
 
+            # Определяем целевую директорию
             if not path_args:
                 target_path = self.current_dir
             else:
                 target_path = path_args[0]
                 if not target_path.startswith('/'):
+                    # Преобразуем относительный путь в абсолютный
                     target_path = os.path.join(self.current_dir, target_path).replace('\\', '/')
 
+            # Получаем целевую директорию
             target_dir = self.get_directory_by_path(target_path)
             if not target_dir or target_dir["type"] != "directory":
                 self.print_output(f"Error: {target_path} is not a directory")
                 return False
 
+            # Формируем список элементов
             items = []
             for name, item in target_dir["content"].items():
                 if show_details:
+                    # Подробный вывод с правами и размерами
                     item_type = "d" if item["type"] == "directory" else "-"
                     perms = item.get("perms", "???")
                     if item["type"] == "file":
@@ -353,8 +377,10 @@ class VFSApp: # запуск в терминале python3 emulator.py
                     else:
                         items.append(f"{item_type}{perms} {name}")
                 else:
+                    # Простой вывод только имен
                     items.append(name)
 
+            # Выводим результат
             if items:
                 self.print_output(" ".join(items))
             else:
@@ -367,6 +393,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
             return False
 
     def change_directory(self, args):
+        """Реализация команды cd - смена директории"""
         if not args:
             self.print_output("Error: specify path")
             return False
@@ -374,8 +401,10 @@ class VFSApp: # запуск в терминале python3 emulator.py
         path = args[0]
         try:
             if path == "/":
+                # Переход в корневую директорию
                 self.current_dir = "/"
             elif path == "..":
+                # Переход на уровень выше
                 if self.current_dir == "/":
                     self.print_output("Error: already in root directory")
                     return False
@@ -383,10 +412,13 @@ class VFSApp: # запуск в терминале python3 emulator.py
                     parts = self.current_dir.rstrip('/').split('/')
                     self.current_dir = '/' + '/'.join(parts[:-1]) if len(parts) > 1 else "/"
             else:
+                # Переход в указанную директорию
                 if path.startswith('/'):
                     new_path = path
                 else:
                     new_path = os.path.join(self.current_dir, path).replace('\\', '/')
+
+                # Проверяем существование целевой директории
                 target = self.get_directory_by_path(new_path)
                 if not target:
                     self.print_output(f"Error: path {new_path} does not exist")
@@ -409,6 +441,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
             lines_to_show = 10  # значение по умолчанию
             file_path = None
 
+            # Обрабатываем опции командной строки
             i = 0
             while i < len(args):
                 if args[i] == "-n" and i + 1 < len(args):
@@ -511,7 +544,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
                 self.print_output(f"Error: file {new_filename} already exists in {dest_dir_path}")
                 return False
 
-            # Копируем файл
+            # Копируем файл (создаем новую запись с теми же данными)
             dest_dir["content"][new_filename] = {
                 "type": "file",
                 "size": source_item["size"],
@@ -578,9 +611,19 @@ class VFSApp: # запуск в терминале python3 emulator.py
             return False
 
     def get_directory_by_path(self, path):
+        """
+        Получает элемент VFS по указанному пути
+
+        Args:
+            path (str): Путь к элементу
+
+        Returns:
+            dict or None: Элемент VFS или None если не найден
+        """
         if path == "/":
             return self.current_vfs.get("/")
 
+        # Разбиваем путь на компоненты и ищем элемент
         parts = path.strip('/').split('/')
         current = self.current_vfs.get("/")
 
@@ -592,6 +635,7 @@ class VFSApp: # запуск в терминале python3 emulator.py
         return current
 
     def run_interactive(self):
+        """Запуск интерактивного режима"""
         username = getpass.getuser()
         hostname = socket.gethostname()
 
@@ -599,19 +643,25 @@ class VFSApp: # запуск в терминале python3 emulator.py
 
         while True:
             try:
+                # Формируем приглашение командной строки
                 prompt = f"{username}@{hostname}:{self.current_dir}$ "
                 command = input(prompt).strip()
+
+                # Выполняем команду (is_script=False - продолжаем при ошибках)
                 if not self.execute_command(command, is_script=False):
                     break
             except KeyboardInterrupt:
+                # Обработка Ctrl+C
                 self.print_output("\nShutting down...")
                 break
             except EOFError:
+                # Обработка Ctrl+D
                 self.print_output("\nShutting down...")
                 break
 
 
 def parse_arguments():
+    """Парсинг аргументов командной строки"""
     parser = argparse.ArgumentParser(description='VFS Emulator')
     parser.add_argument('--vfs-path', '-v', type=str, default='./vfs_root',
                         help='Path to VFS physical location')
@@ -623,7 +673,10 @@ def parse_arguments():
 
 
 if __name__ == "__main__":
+    # Точка входа в программу
     args = parse_arguments()
+
+    # Вывод информации о параметрах запуска
     print("=" * 50)
     print("Emulator startup parameters:")
     print(f"VFS path: {args.vfs_path}")
@@ -631,4 +684,5 @@ if __name__ == "__main__":
     print(f"VFS CSV: {args.vfs_csv if args.vfs_csv else 'Default VFS'}")
     print("=" * 50)
 
+    # Создание и запуск приложения VFS
     app = VFSApp(vfs_path=args.vfs_path, script_path=args.script, vfs_csv=args.vfs_csv)
