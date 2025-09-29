@@ -1,0 +1,19 @@
+# Тестируем команду rmdir (удаление директорий)
+cd /home/user
+ls -l
+mkdir test_dir1
+mkdir test_dir2
+ls -l
+rmdir test_dir1
+ls -l
+cd photos
+ls
+cd vacation
+ls
+cd /home/user
+rmdir photos/vacation
+cd photos
+ls
+cd /home/user
+rmdir temp
+ls -l

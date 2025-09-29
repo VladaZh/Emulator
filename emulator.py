@@ -79,7 +79,6 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
             return False
 
     def validate_csv_row(self, row, row_num):
-        """Валидация строки CSV"""
         required_fields = ['path', 'type']
         for field in required_fields:
             if field not in row or not row[field]:

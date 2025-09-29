@@ -1,0 +1,16 @@
+# Тестируем команду cp (копирование файлов)
+cd /home/user/documents
+ls
+cp readme.txt readme_backup.txt
+ls
+cp notes.txt /notes_backup.txt
+cd /
+ls
+head -n 2 notes_backup.txt
+cd /home/user
+cp ../readme.txt copied_readme.txt
+ls
+head -n 2 copied_readme.txt
+cp documents/notes.txt ./notes_copy.txt
+ls
+head -n 2 notes_copy.txt

@@ -1,0 +1,11 @@
+# Тестируем команды head и date
+date
+head /readme.txt
+head -n 5 /readme.txt
+head /etc/config.txt
+head -n 2 /etc/config.txt
+cd /home/user/documents
+head readme.txt
+head -n 3 readme.txt
+head notes.txt
+date
