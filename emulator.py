@@ -34,12 +34,12 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
 
             if script_completed:
                 self.print_output("Script completed successfully")
-                sys.exit(0)  # Завершаем программу после успешного скрипта
+                # sys.exit(0)  # Завершаем программу после успешного скрипта
             else:
                 self.print_output("Script execution failed")
                 sys.exit(1)  # Завершаем программу с ошибкой после неудачного скрипта
 
-        # Только если скрипт не указан, переходим в интерактивный режим
+        # Всегда переходим в интерактивный режим
         self.run_interactive()
 
     def load_vfs_from_csv(self):
@@ -256,35 +256,28 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
             else:
                 self.print_output(f"Unknown command: {command}")
                 # выход при неизвестной команде
-                return False
+                return is_script
 
             # В режиме скрипта возвращаем False при ошибке для остановки
-            if is_script:
-                return success
-            else:
-                return True  # В интерактивном режиме продолжаем при ошибках
+            # if is_script:
+            #     return success
+            # else:
+            #     return True
+            return True
 
         except ValueError as e:
             self.print_output(f"Syntax error: {e}")
-            return not is_script
+            return False
         except Exception as e:
             self.print_output(f"Command execution error: {e}")
-            return not is_script
+            return False
 
     def parse_command(self, command_line):
-        """
-        Парсит командную строку на токены с поддержкой кавычек
 
-        Args:
-            command_line (str): Строка команды
-
-        Returns:
-            list: Список токенов
-        """
         tokens = []
         current_token = ""
-        in_quotes = False
-        quote_char = None
+        in_quotes = False # в кавычках
+        quote_char = None # тип кавычек
 
         for char in command_line:
             if char in ['"', "'"]:
@@ -344,7 +337,7 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
             return False
 
     def list_directory(self, args):
-        """Реализация команды ls - список файлов и директорий"""
+        # Реализация команды ls - список файлов и директорий
         try:
             show_details = "-l" in args
             path_args = [arg for arg in args if arg != "-l"]
@@ -435,7 +428,6 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
             return False
 
     def head_file(self, args):
-        """Реализация команды head - вывод первых строк файла"""
         try:
             # Парсим аргументы
             lines_to_show = 10  # значение по умолчанию
@@ -489,7 +481,6 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
             return False
 
     def show_date(self, args):
-        """Реализация команды date - вывод текущей даты и времени"""
         try:
             # Простая реализация без поддержки форматов
             current_time = datetime.now()
@@ -501,7 +492,6 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
             return False
 
     def copy_file(self, args):
-        """Реализация команды cp - копирование файлов"""
         try:
             if len(args) < 2:
                 self.print_output("Error: cp requires source and destination paths")
@@ -560,7 +550,7 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
             return False
 
     def remove_directory(self, args):
-        """Реализация команды rmdir - удаление пустых директорий"""
+        #Реализация команды rmdir - удаление пустых директорий
         try:
             if len(args) < 1:
                 self.print_output("Error: rmdir requires directory path")
@@ -611,15 +601,6 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
             return False
 
     def get_directory_by_path(self, path):
-        """
-        Получает элемент VFS по указанному пути
-
-        Args:
-            path (str): Путь к элементу
-
-        Returns:
-            dict or None: Элемент VFS или None если не найден
-        """
         if path == "/":
             return self.current_vfs.get("/")
 
@@ -632,10 +613,10 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
                 return None
             current = current["content"].get(part)
 
-        return current
+        return current # элемент VFS
 
     def run_interactive(self):
-        """Запуск интерактивного режима"""
+        # интерактивный режим
         username = getpass.getuser()
         hostname = socket.gethostname()
 
@@ -651,11 +632,11 @@ class VFSApp: # Запуск в терминале: python3 emulator.py
                 if not self.execute_command(command, is_script=False):
                     break
             except KeyboardInterrupt:
-                # Обработка Ctrl+C
+                # Обработка Ctrl+C (остановка выполняющейся команды)
                 self.print_output("\nShutting down...")
                 break
             except EOFError:
-                # Обработка Ctrl+D
+                # Обработка Ctrl+D (сохранить и выйти)
                 self.print_output("\nShutting down...")
                 break
 
